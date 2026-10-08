@@ -1,4 +1,5 @@
 import os
+import gc
 
 import torch
 from flask import Flask, render_template, request, send_from_directory
@@ -10,10 +11,25 @@ from PIL import Image
 from torchvision import transforms
 from huggingface_hub import hf_hub_download
 
+
 # Import the existing AdaIN code
 from utils.model import VGGEncoder, Decoder
 from utils.utils import adaptive_instance_normalization
 
+
+# =========================================================
+# CPU MEMORY OPTIMIZATION
+# =========================================================
+
+# Render has limited RAM.
+# Restrict PyTorch CPU threads to reduce memory usage.
+torch.set_num_threads(1)
+torch.set_num_interop_threads(1)
+
+
+# =========================================================
+# FLASK APP
+# =========================================================
 
 app = Flask(__name__)
 
@@ -23,13 +39,23 @@ app.config['ALLOWED_EXTENSIONS'] = {'png', 'jpg', 'jpeg'}
 
 Bootstrap(app)
 
-os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+os.makedirs(
+    app.config['UPLOAD_FOLDER'],
+    exist_ok=True
+)
 
 
-# model downloaded from hugging face
+# =========================================================
+# HUGGING FACE MODEL DOWNLOAD
+# =========================================================
 
 MODEL_DIR = "models"
-os.makedirs(MODEL_DIR, exist_ok=True)
+
+os.makedirs(
+    MODEL_DIR,
+    exist_ok=True
+)
+
 
 print("Downloading/loading VGG model...")
 
@@ -39,6 +65,7 @@ VGG_PATH = hf_hub_download(
     local_dir=MODEL_DIR
 )
 
+
 print("Downloading/loading decoder...")
 
 DECODER_PATH = hf_hub_download(
@@ -47,11 +74,14 @@ DECODER_PATH = hf_hub_download(
     local_dir=MODEL_DIR
 )
 
+
 print("VGG model path:", VGG_PATH)
 print("Decoder path:", DECODER_PATH)
 
 
-# device
+# =========================================================
+# DEVICE
+# =========================================================
 
 device = torch.device(
     "cuda" if torch.cuda.is_available() else "cpu"
@@ -60,7 +90,9 @@ device = torch.device(
 print("Using device:", device)
 
 
-# form
+# =========================================================
+# FORM
+# =========================================================
 
 class UploadForm(FlaskForm):
 
@@ -80,13 +112,16 @@ class UploadForm(FlaskForm):
     )
 
 
-# load adain model
+# =========================================================
+# LOAD ADAIN MODEL
+# =========================================================
 
 print("Loading VGG encoder...")
 
 encoder = VGGEncoder(
     VGG_PATH
 ).to(device)
+
 
 print("Loading decoder...")
 
@@ -99,13 +134,16 @@ decoder.load_state_dict(
     )
 )
 
+
 encoder.eval()
 decoder.eval()
 
 print("AdaIN models loaded successfully!")
 
 
-# file validation
+# =========================================================
+# FILE VALIDATION
+# =========================================================
 
 def allowed_file(filename):
 
@@ -117,7 +155,9 @@ def allowed_file(filename):
     )
 
 
-# style transfer
+# =========================================================
+# STYLE TRANSFER
+# =========================================================
 
 def style_transfer(
     content_image,
@@ -128,6 +168,10 @@ def style_transfer(
     device
 ):
 
+    # -----------------------------------------------------
+    # KEEPING 512 RESOLUTION
+    # -----------------------------------------------------
+
     content_transform = transforms.Compose([
         transforms.Resize(512),
         transforms.ToTensor()
@@ -137,6 +181,11 @@ def style_transfer(
         transforms.Resize(512),
         transforms.ToTensor()
     ])
+
+
+    # -----------------------------------------------------
+    # CONVERT IMAGES TO TENSORS
+    # -----------------------------------------------------
 
     content_image = (
         content_transform(content_image)
@@ -150,44 +199,72 @@ def style_transfer(
         .to(device)
     )
 
-    with torch.no_grad():
 
-        # Extract content and style features
+    # -----------------------------------------------------
+    # ADAIN INFERENCE
+    # -----------------------------------------------------
 
+    # inference_mode uses less memory than normal
+    # autograd/no_grad inference.
+    with torch.inference_mode():
+
+        # Extract content features
         content_feats = encoder(
             content_image,
             is_test=True
         )
 
+
+        # Extract style features
         style_feats = encoder(
             style_image,
             is_test=True
         )
 
-        # Apply AdaIN
 
+        # Apply AdaIN
         stylized_feats = adaptive_instance_normalization(
             content_feats,
             style_feats
         )
 
-        # Alpha blending
 
+        # Alpha blending
         stylized_feats = (
             alpha * stylized_feats
             + (1 - alpha) * content_feats
         )
 
-        # Decode stylized feature
 
+        # Decode stylized feature
         stylized_image = decoder(
             stylized_feats
         )
 
+
+    # -----------------------------------------------------
+    # FREE UNNECESSARY MEMORY
+    # -----------------------------------------------------
+
+    del content_image
+    del style_image
+    del content_feats
+    del style_feats
+    del stylized_feats
+
+    gc.collect()
+
+
+    # -----------------------------------------------------
+    # RETURN RESULT
+    # -----------------------------------------------------
+
     return stylized_image
 
 
-# save image
+# =========================================================
+# SAVE IMAGE
+# =========================================================
 
 def save_image(tensor, path):
 
@@ -202,7 +279,9 @@ def save_image(tensor, path):
     image.save(path)
 
 
-# home page
+# =========================================================
+# HOME PAGE
+# =========================================================
 
 @app.route('/', methods=['GET', 'POST'])
 def index():
@@ -214,9 +293,16 @@ def index():
     style_filename = None
     error = None
 
+
+    # =====================================================
+    # FORM SUBMITTED
+    # =====================================================
+
     if form.validate_on_submit():
 
-        # content image
+        # -------------------------------------------------
+        # CONTENT IMAGE
+        # -------------------------------------------------
 
         if (
             form.content.data
@@ -246,7 +332,9 @@ def index():
             content_filename = form.content_path.data
 
 
-        # style image
+        # -------------------------------------------------
+        # STYLE IMAGE
+        # -------------------------------------------------
 
         if (
             form.style.data
@@ -276,7 +364,9 @@ def index():
             style_filename = form.style_path.data
 
 
-        # style transfer
+        # -------------------------------------------------
+        # STYLE TRANSFER
+        # -------------------------------------------------
 
         if content_filename and style_filename:
 
@@ -290,25 +380,40 @@ def index():
                 style_filename
             )
 
+
             try:
 
+                # Load content image
                 content_image = Image.open(
                     content_path
                 ).convert('RGB')
 
+
+                # Load style image
                 style_image = Image.open(
                     style_path
                 ).convert('RGB')
 
+
+                # Get alpha value
                 alpha = float(
                     form.alpha.data
                 )
 
+
+                # Keep alpha between 0 and 1
                 alpha = max(
                     0.0,
                     min(1.0, alpha)
                 )
 
+
+                print("Starting style transfer...")
+                print("Image size: 512x512")
+                print("Alpha:", alpha)
+
+
+                # Perform AdaIN
                 stylized_image = style_transfer(
                     content_image,
                     style_image,
@@ -318,21 +423,46 @@ def index():
                     device
                 )
 
+
+                # -------------------------------------------------
+                # SAVE RESULT
+                # -------------------------------------------------
+
                 result_filename = (
                     'stylized_' + content_filename
                 )
+
 
                 result_path = os.path.join(
                     app.config['UPLOAD_FOLDER'],
                     result_filename
                 )
 
+
                 save_image(
                     stylized_image,
                     result_path
                 )
 
+
                 result_image = result_filename
+
+
+                print(
+                    "Style transfer completed successfully!"
+                )
+
+
+                # -------------------------------------------------
+                # CLEANUP
+                # -------------------------------------------------
+
+                del stylized_image
+                del content_image
+                del style_image
+
+                gc.collect()
+
 
             except Exception as e:
 
@@ -343,16 +473,22 @@ def index():
 
                 error = str(e)
 
+
         else:
 
             if not content_filename:
 
                 error = 'Please upload content image'
 
+
             if not style_filename:
 
                 error = 'Please upload style image'
 
+
+    # =====================================================
+    # RENDER TEMPLATE
+    # =====================================================
 
     return render_template(
         'index.html',
@@ -364,7 +500,9 @@ def index():
     )
 
 
-# serve uploaded images
+# =========================================================
+# SERVE UPLOADED IMAGES
+# =========================================================
 
 @app.route('/uploads/<filename>')
 def send_image(filename):
@@ -375,7 +513,9 @@ def send_image(filename):
     )
 
 
-# examples
+# =========================================================
+# EXAMPLES
+# =========================================================
 
 @app.route('/examples/<path:filename>')
 def send_example(filename):
@@ -386,7 +526,9 @@ def send_example(filename):
     )
 
 
-# local run
+# =========================================================
+# LOCAL / RENDER RUN
+# =========================================================
 
 if __name__ == '__main__':
 
