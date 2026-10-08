@@ -1,11 +1,10 @@
 Flask
+Flask-WTF
 Flask-Bootstrap
-flask_wtf
-numpy
+WTForms
 Pillow
+numpy
 torch
 torchvision
-tqdm
-Werkzeug
-WTForms
 gunicorn
+huggingface_hub
