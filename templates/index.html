@@ -1,0 +1,3205 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <meta name="description"
+        content="StyleForge AI - Transform photographs into artistic masterpieces using Neural Style Transfer.">
+
+    <title>StyleForge AI | Neural Style Transfer</title>
+
+
+    <!-- =========================================================
+         BOOTSTRAP
+    ========================================================== -->
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+
+
+    <!-- =========================================================
+         FONT AWESOME
+    ========================================================== -->
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css">
+
+
+    <!-- =========================================================
+         GOOGLE FONTS
+    ========================================================== -->
+
+    <link
+        href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap"
+        rel="stylesheet">
+
+
+    <style>
+        /* =========================================================
+           ROOT
+        ========================================================== */
+
+        :root {
+
+            --cream: #f7f0e3;
+
+            --cream-dark: #eee2ce;
+
+            --brown: #4a3523;
+
+            --brown-dark: #2c2017;
+
+            --gold: #c89c5d;
+
+            --gold-light: #e6c58f;
+
+            --text: #3f3227;
+
+            --muted: #7e6b57;
+
+            --white: #fffdf8;
+
+            --border: rgba(120, 91, 53, 0.22);
+
+        }
+
+
+        /* =========================================================
+           GLOBAL
+        ========================================================== */
+
+        * {
+
+            margin: 0;
+
+            padding: 0;
+
+            box-sizing: border-box;
+
+        }
+
+
+        html {
+
+            scroll-behavior: smooth;
+
+        }
+
+
+        body {
+
+            font-family: 'Inter', sans-serif;
+
+            background:
+
+                linear-gradient(135deg,
+                    #faf5eb,
+                    #eee4d3);
+
+            color: var(--text);
+
+            overflow-x: hidden;
+
+        }
+
+
+        a {
+
+            text-decoration: none;
+
+        }
+
+
+        /* =========================================================
+           NAVBAR
+        ========================================================== */
+
+        .main-navbar {
+
+            position: fixed;
+
+            top: 0;
+
+            left: 0;
+
+            width: 100%;
+
+            z-index: 9999;
+
+            padding: 14px 0;
+
+            background:
+
+                rgba(35, 26, 18, 0.82);
+
+            backdrop-filter: blur(18px);
+
+            -webkit-backdrop-filter: blur(18px);
+
+            border-bottom:
+
+                1px solid rgba(255, 255, 255, 0.10);
+
+        }
+
+
+        .brand {
+
+            display: flex;
+
+            align-items: center;
+
+            gap: 10px;
+
+            color: #fff;
+
+            font-family:
+
+                'Cormorant Garamond',
+                serif;
+
+            font-size: 1.8rem;
+
+            font-weight: 700;
+
+            letter-spacing: 1px;
+
+        }
+
+
+        .brand-icon {
+
+            width: 38px;
+
+            height: 38px;
+
+            display: flex;
+
+            align-items: center;
+
+            justify-content: center;
+
+            border-radius: 12px;
+
+            color: #fff;
+
+            background:
+
+                linear-gradient(135deg,
+                    #d5ac70,
+                    #8e6332);
+
+            box-shadow:
+
+                0 5px 20px rgba(200, 156, 93, .3);
+
+        }
+
+
+        .navbar-links {
+
+            display: flex;
+
+            align-items: center;
+
+            gap: 28px;
+
+        }
+
+
+        .navbar-links a {
+
+            color: rgba(255, 255, 255, .78);
+
+            font-size: .88rem;
+
+            transition: .25s ease;
+
+        }
+
+
+        .navbar-links a:hover {
+
+            color: var(--gold-light);
+
+        }
+
+
+        .nav-cta {
+
+            padding: 9px 18px;
+
+            border-radius: 30px;
+
+            color: #fff !important;
+
+            border:
+
+                1px solid rgba(230, 197, 143, .5);
+
+            background:
+
+                rgba(200, 156, 93, .14);
+
+        }
+
+
+        /* =========================================================
+           HERO
+        ========================================================== */
+
+        .hero {
+
+            min-height: 100vh;
+
+            position: relative;
+
+            display: flex;
+
+            align-items: center;
+
+            overflow: hidden;
+
+            /*
+              Flask generates the correct URL.
+            */
+
+            background-image: linear-gradient(90deg, rgba(5, 8, 18, .92), rgba(5, 8, 18, .45)),
+            url("{{ url_for('static', filename='uploads/images/hero.jpg') }}");
+
+            background-size: cover;
+
+            background-position: center;
+
+            background-repeat: no-repeat;
+
+        }
+
+
+        /* cinematic overlay */
+
+        .hero::before {
+
+            content: "";
+
+            position: absolute;
+
+            inset: 0;
+
+            background:
+
+                radial-gradient(circle at 72% 42%,
+                    rgba(220, 180, 110, .20),
+                    transparent 28%);
+
+            pointer-events: none;
+
+        }
+
+
+        /* bottom fade */
+
+        .hero::after {
+
+            content: "";
+
+            position: absolute;
+
+            left: 0;
+
+            right: 0;
+
+            bottom: 0;
+
+            height: 180px;
+
+            background:
+
+                linear-gradient(transparent,
+                    #f7f0e3);
+
+            pointer-events: none;
+
+        }
+
+
+        .hero-container {
+
+            position: relative;
+
+            z-index: 5;
+
+            width: 100%;
+
+            max-width: 1250px;
+
+            margin: auto;
+
+            padding:
+
+                150px 25px 100px;
+
+        }
+
+
+        .hero-content {
+
+            max-width: 700px;
+
+        }
+
+
+        /* creator */
+
+        .creator-tag {
+
+            display: inline-flex;
+
+            align-items: center;
+
+            gap: 8px;
+
+            padding: 8px 16px;
+
+            margin-bottom: 25px;
+
+            border-radius: 50px;
+
+            color: #f8ead5;
+
+            background:
+
+                rgba(255, 255, 255, .08);
+
+            border:
+
+                1px solid rgba(230, 197, 143, .35);
+
+            backdrop-filter: blur(10px);
+
+            font-size: .78rem;
+
+            letter-spacing: .6px;
+
+        }
+
+
+        .creator-tag i {
+
+            color: #e2b36e;
+
+        }
+
+
+        .hero h1 {
+
+            font-family:
+
+                'Cormorant Garamond',
+                serif;
+
+            font-size:
+
+                clamp(4rem, 9vw, 8rem);
+
+            line-height: .85;
+
+            font-weight: 600;
+
+            color: #fffaf1;
+
+            letter-spacing: -2px;
+
+            margin-bottom: 25px;
+
+            text-shadow:
+
+                0 12px 40px rgba(0, 0, 0, .45);
+
+        }
+
+
+        .hero h1 span {
+
+            color: var(--gold-light);
+
+        }
+
+
+        .hero-subtitle {
+
+            font-family:
+
+                'Cormorant Garamond',
+                serif;
+
+            font-size:
+
+                clamp(1.4rem, 3vw, 2rem);
+
+            color: #e9cfaa;
+
+            font-style: italic;
+
+            margin-bottom: 20px;
+
+        }
+
+
+        .hero-description {
+
+            color:
+
+                rgba(255, 248, 236, .82);
+
+            max-width: 620px;
+
+            font-size: .96rem;
+
+            line-height: 1.9;
+
+        }
+
+
+        /* hero buttons */
+
+        .hero-buttons {
+
+            display: flex;
+
+            flex-wrap: wrap;
+
+            gap: 14px;
+
+            margin-top: 35px;
+
+        }
+
+
+        .btn-primary-luxury {
+
+            display: inline-flex;
+
+            align-items: center;
+
+            gap: 10px;
+
+            padding: 14px 25px;
+
+            border-radius: 5px;
+
+            color: #fff;
+
+            background:
+
+                linear-gradient(135deg,
+                    #a47740,
+                    #674828);
+
+            border:
+
+                1px solid rgba(255, 255, 255, .18);
+
+            box-shadow:
+
+                0 12px 30px rgba(0, 0, 0, .22);
+
+            transition: .3s ease;
+
+        }
+
+
+        .btn-primary-luxury:hover {
+
+            color: #fff;
+
+            transform: translateY(-3px);
+
+            box-shadow:
+
+                0 18px 35px rgba(0, 0, 0, .30);
+
+        }
+
+
+        .btn-outline-luxury {
+
+            display: inline-flex;
+
+            align-items: center;
+
+            gap: 10px;
+
+            padding: 14px 25px;
+
+            border-radius: 5px;
+
+            color: #fff;
+
+            background:
+
+                rgba(255, 255, 255, .06);
+
+            border:
+
+                1px solid rgba(255, 255, 255, .30);
+
+            backdrop-filter: blur(8px);
+
+            transition: .3s ease;
+
+        }
+
+
+        .btn-outline-luxury:hover {
+
+            color: #fff;
+
+            background:
+
+                rgba(255, 255, 255, .13);
+
+        }
+
+
+        /* =========================================================
+           FLOATING AI CARD
+        ========================================================== */
+
+        .ai-card {
+
+            position: absolute;
+
+            right: 7%;
+
+            bottom: 20%;
+
+            width: 280px;
+
+            padding: 22px;
+
+            border-radius: 18px;
+
+            color: #fff;
+
+            background:
+
+                rgba(40, 29, 20, .55);
+
+            border:
+
+                1px solid rgba(255, 255, 255, .18);
+
+            backdrop-filter: blur(18px);
+
+            box-shadow:
+
+                0 25px 60px rgba(0, 0, 0, .30);
+
+            animation:
+
+                floatingCard 5s ease-in-out infinite;
+
+        }
+
+
+        @keyframes floatingCard {
+
+            0%,
+            100% {
+
+                transform:
+                    translateY(0);
+
+            }
+
+            50% {
+
+                transform:
+                    translateY(-12px);
+
+            }
+
+        }
+
+
+        .ai-card-top {
+
+            display: flex;
+
+            align-items: center;
+
+            gap: 12px;
+
+            margin-bottom: 18px;
+
+        }
+
+
+        .ai-icon {
+
+            width: 45px;
+
+            height: 45px;
+
+            border-radius: 13px;
+
+            display: flex;
+
+            align-items: center;
+
+            justify-content: center;
+
+            background:
+
+                linear-gradient(135deg,
+                    #d8b77c,
+                    #76532e);
+
+        }
+
+
+        .ai-card-title {
+
+            font-weight: 600;
+
+            font-size: .9rem;
+
+        }
+
+
+        .ai-card-subtitle {
+
+            font-size: .7rem;
+
+            color: rgba(255, 255, 255, .6);
+
+        }
+
+
+        .ai-line {
+
+            height: 7px;
+
+            border-radius: 20px;
+
+            background:
+
+                rgba(255, 255, 255, .12);
+
+            overflow: hidden;
+
+            margin-bottom: 10px;
+
+        }
+
+
+        .ai-line span {
+
+            display: block;
+
+            height: 100%;
+
+            width: 76%;
+
+            border-radius: 20px;
+
+            background:
+
+                linear-gradient(90deg,
+                    #b98a4d,
+                    #e3c38d);
+
+            animation:
+
+                loadingBar 3s infinite;
+
+        }
+
+
+        @keyframes loadingBar {
+
+            0% {
+
+                width: 35%;
+
+            }
+
+            50% {
+
+                width: 90%;
+
+            }
+
+            100% {
+
+                width: 55%;
+
+            }
+
+        }
+
+
+        .ai-card-status {
+
+            display: flex;
+
+            justify-content: space-between;
+
+            color: rgba(255, 255, 255, .6);
+
+            font-size: .7rem;
+
+            margin-top: 12px;
+
+        }
+
+
+        .status-dot {
+
+            width: 7px;
+
+            height: 7px;
+
+            display: inline-block;
+
+            border-radius: 50%;
+
+            background: #79c98a;
+
+            box-shadow:
+
+                0 0 10px rgba(121, 201, 138, .8);
+
+        }
+
+
+        /* =========================================================
+           STATS
+        ========================================================== */
+
+        .stats {
+
+            position: relative;
+
+            z-index: 10;
+
+            margin-top: -50px;
+
+        }
+
+
+        .stats-card {
+
+            display: grid;
+
+            grid-template-columns:
+                repeat(4, 1fr);
+
+            background: #fffaf2;
+
+            border:
+
+                1px solid var(--border);
+
+            border-radius: 15px;
+
+            box-shadow:
+
+                0 20px 60px rgba(60, 42, 25, .10);
+
+            overflow: hidden;
+
+        }
+
+
+        .stat {
+
+            padding: 25px;
+
+            text-align: center;
+
+            border-right:
+
+                1px solid var(--border);
+
+        }
+
+
+        .stat:last-child {
+
+            border-right: none;
+
+        }
+
+
+        .stat strong {
+
+            display: block;
+
+            font-family:
+
+                'Cormorant Garamond',
+                serif;
+
+            font-size: 2rem;
+
+            color: var(--brown);
+
+        }
+
+
+        .stat span {
+
+            font-size: .75rem;
+
+            color: var(--muted);
+
+        }
+
+
+        /* =========================================================
+           GENERAL SECTION
+        ========================================================== */
+
+        .section {
+
+            padding: 100px 0;
+
+        }
+
+
+        .section-heading {
+
+            max-width: 700px;
+
+            margin: 0 auto 50px;
+
+            text-align: center;
+
+        }
+
+
+        .eyebrow {
+
+            color: #a07842;
+
+            font-size: .75rem;
+
+            text-transform: uppercase;
+
+            letter-spacing: 3px;
+
+            font-weight: 600;
+
+            margin-bottom: 12px;
+
+        }
+
+
+        .section-heading h2 {
+
+            font-family:
+
+                'Cormorant Garamond',
+                serif;
+
+            font-size:
+
+                clamp(2.5rem, 5vw, 4rem);
+
+            color: var(--brown);
+
+            margin-bottom: 12px;
+
+        }
+
+
+        .section-heading p {
+
+            color: var(--muted);
+
+            line-height: 1.8;
+
+            font-size: .9rem;
+
+        }
+
+
+        /* =========================================================
+           STUDIO
+        ========================================================== */
+
+        .studio-card {
+
+            background: #fffaf2;
+
+            border:
+
+                1px solid var(--border);
+
+            border-radius: 18px;
+
+            padding: 35px;
+
+            box-shadow:
+
+                0 20px 55px rgba(60, 42, 25, .08);
+
+        }
+
+
+        .upload-card {
+
+            border:
+
+                1px solid rgba(120, 91, 53, .18);
+
+            border-radius: 14px;
+
+            overflow: hidden;
+
+            background: #f8f1e5;
+
+        }
+
+
+        .upload-title {
+
+            padding: 16px 20px;
+
+            background: #eee1cc;
+
+            color: var(--brown);
+
+            font-family:
+
+                'Cormorant Garamond',
+                serif;
+
+            font-size: 1.25rem;
+
+            font-weight: 600;
+
+        }
+
+
+        .preview {
+
+            height: 330px;
+
+            position: relative;
+
+            display: flex;
+
+            align-items: center;
+
+            justify-content: center;
+
+            overflow: hidden;
+
+            background:
+
+                repeating-linear-gradient(45deg,
+                    #eee5d6,
+                    #eee5d6 10px,
+                    #e9ddca 10px,
+                    #e9ddca 20px);
+
+        }
+
+
+        .preview img {
+
+            width: 100%;
+
+            height: 100%;
+
+            object-fit: contain;
+
+            position: relative;
+
+            z-index: 2;
+
+        }
+
+
+        .preview-placeholder {
+
+            color: #99846c;
+
+            text-align: center;
+
+            font-family:
+
+                'Cormorant Garamond',
+                serif;
+
+            font-size: 1.3rem;
+
+        }
+
+
+        .preview-placeholder i {
+
+            display: block;
+
+            font-size: 2rem;
+
+            margin-bottom: 10px;
+
+            color: #b4976b;
+
+        }
+
+
+        .upload-control {
+
+            padding: 18px;
+
+        }
+
+
+        .form-control {
+
+            background: #fffdf8;
+
+            border:
+
+                1px solid #d0bea1;
+
+            border-radius: 7px;
+
+        }
+
+
+        .form-control:focus {
+
+            border-color: #a47b43;
+
+            box-shadow:
+
+                0 0 0 3px rgba(164, 123, 67, .12);
+
+        }
+
+
+        .form-control::file-selector-button {
+
+            border: none;
+
+            background: #62472f;
+
+            color: #fff;
+
+            padding: 8px 14px;
+
+            margin-right: 10px;
+
+            border-radius: 5px;
+
+        }
+
+
+        /* =========================================================
+           CONTROL
+        ========================================================== */
+
+        .control-panel {
+
+            margin-top: 25px;
+
+            padding: 28px;
+
+            border:
+
+                1px solid var(--border);
+
+            border-radius: 14px;
+
+            background:
+
+                linear-gradient(135deg,
+                    #f8f0e2,
+                    #fffaf3);
+
+        }
+
+
+        .control-header {
+
+            display: flex;
+
+            justify-content: space-between;
+
+            align-items: center;
+
+            margin-bottom: 20px;
+
+        }
+
+
+        .control-header h3 {
+
+            margin: 0;
+
+            font-family:
+
+                'Cormorant Garamond',
+                serif;
+
+            color: var(--brown);
+
+        }
+
+
+        .strength-value {
+
+            padding: 5px 12px;
+
+            border-radius: 30px;
+
+            color: #805a2e;
+
+            background: #ead8ba;
+
+            font-size: .8rem;
+
+            font-weight: 600;
+
+        }
+
+
+        #alphaRange {
+
+            width: 100%;
+
+            accent-color: #98703c;
+
+        }
+
+
+        .strength-labels {
+
+            display: flex;
+
+            justify-content: space-between;
+
+            color: var(--muted);
+
+            font-size: .75rem;
+
+            margin-top: 5px;
+
+        }
+
+
+        .create-btn {
+
+            width: 100%;
+
+            margin-top: 25px;
+
+            padding: 15px;
+
+            border: none;
+
+            border-radius: 8px;
+
+            color: #fff;
+
+            font-family:
+
+                'Cormorant Garamond',
+                serif;
+
+            font-size: 1.25rem;
+
+            background:
+
+                linear-gradient(135deg,
+                    #76542f,
+                    #422d1d);
+
+            box-shadow:
+
+                0 12px 30px rgba(66, 45, 29, .20);
+
+            transition: .3s ease;
+
+        }
+
+
+        .create-btn:hover {
+
+            transform:
+                translateY(-2px);
+
+            box-shadow:
+
+                0 18px 35px rgba(66, 45, 29, .28);
+
+        }
+
+
+        /* =========================================================
+           MAGIC PROCESS
+        ========================================================== */
+
+        .magic-process {
+
+            display: grid;
+
+            grid-template-columns:
+                repeat(3, 1fr);
+
+            gap: 25px;
+
+        }
+
+
+        .process-card {
+
+            position: relative;
+
+            padding: 30px;
+
+            border-radius: 15px;
+
+            background: #fffaf2;
+
+            border:
+
+                1px solid var(--border);
+
+            transition: .3s ease;
+
+        }
+
+
+        .process-card:hover {
+
+            transform:
+                translateY(-7px);
+
+            box-shadow:
+
+                0 20px 40px rgba(60, 42, 25, .10);
+
+        }
+
+
+        .process-icon {
+
+            width: 58px;
+
+            height: 58px;
+
+            display: flex;
+
+            align-items: center;
+
+            justify-content: center;
+
+            border-radius: 15px;
+
+            color: #fff;
+
+            background:
+
+                linear-gradient(135deg,
+                    #c79a5b,
+                    #674727);
+
+            font-size: 1.3rem;
+
+            margin-bottom: 22px;
+
+        }
+
+
+        .process-card h3 {
+
+            font-family:
+
+                'Cormorant Garamond',
+                serif;
+
+            font-size: 1.6rem;
+
+            color: var(--brown);
+
+            margin-bottom: 10px;
+
+        }
+
+
+        .process-card p {
+
+            color: var(--muted);
+
+            line-height: 1.7;
+
+            font-size: .84rem;
+
+        }
+
+
+        /* =========================================================
+           RESULT
+        ========================================================== */
+
+        .result-card {
+
+            background: #fffaf2;
+
+            border:
+
+                1px solid #c9a873;
+
+            border-radius: 18px;
+
+            overflow: hidden;
+
+            box-shadow:
+
+                0 25px 70px rgba(60, 42, 25, .13);
+
+        }
+
+
+        .result-title {
+
+            padding: 18px;
+
+            text-align: center;
+
+            font-family:
+
+                'Cormorant Garamond',
+                serif;
+
+            font-size: 1.5rem;
+
+            color: var(--brown);
+
+            background: #eee1cc;
+
+        }
+
+
+        .result-image {
+
+            width: 100%;
+
+            max-height: 700px;
+
+            object-fit: contain;
+
+            display: block;
+
+            background: #e7dccb;
+
+        }
+
+
+        .result-actions {
+
+            padding: 20px;
+
+            text-align: center;
+
+        }
+
+
+        .download-button {
+
+            display: inline-flex;
+
+            align-items: center;
+
+            gap: 8px;
+
+            padding: 11px 22px;
+
+            border-radius: 7px;
+
+            border:
+
+                1px solid #98703c;
+
+            color: #6f502c;
+
+            transition: .25s ease;
+
+        }
+
+
+        .download-button:hover {
+
+            color: #fff;
+
+            background: #98703c;
+
+        }
+
+
+        /* =========================================================
+           FAQ
+        ========================================================== */
+
+        .faq-box {
+
+            max-width: 850px;
+
+            margin: auto;
+
+        }
+
+
+        .accordion-item {
+
+            margin-bottom: 10px;
+
+            border:
+
+                1px solid var(--border) !important;
+
+            border-radius: 10px !important;
+
+            overflow: hidden;
+
+            background: #fffaf2;
+
+        }
+
+
+        .accordion-button {
+
+            background: #f7efe1;
+
+            color: var(--brown);
+
+            font-family:
+
+                'Cormorant Garamond',
+                serif;
+
+            font-size: 1.15rem;
+
+            box-shadow: none !important;
+
+        }
+
+
+        .accordion-button:not(.collapsed) {
+
+            color: #fff;
+
+            background: #62472f;
+
+        }
+
+
+        .accordion-body {
+
+            color: var(--muted);
+
+            line-height: 1.8;
+
+            font-size: .88rem;
+
+            background: #fffaf2;
+
+        }
+
+
+        /* =========================================================
+           FOOTER
+        ========================================================== */
+
+        footer {
+
+            padding: 70px 0 25px;
+
+            color: #d9cbb8;
+
+            background: #2d2118;
+
+            border-top:
+
+                3px solid #a47740;
+
+        }
+
+
+        .footer-brand {
+
+            font-family:
+
+                'Cormorant Garamond',
+                serif;
+
+            font-size: 2rem;
+
+            color: #fff4e2;
+
+        }
+
+
+        footer p {
+
+            color: #aa9b87;
+
+            font-size: .82rem;
+
+            line-height: 1.8;
+
+        }
+
+
+        .footer-credit {
+
+            margin-top: 35px;
+
+            padding-top: 20px;
+
+            border-top:
+
+                1px solid rgba(255, 255, 255, .10);
+
+            text-align: center;
+
+            font-size: .75rem;
+
+            color: #897968;
+
+        }
+
+
+        .footer-credit strong {
+
+            color: #dfbd82;
+
+        }
+
+
+        /* =========================================================
+           LOADER
+        ========================================================== */
+
+        .loader {
+
+            position: fixed;
+
+            inset: 0;
+
+            display: none;
+
+            align-items: center;
+
+            justify-content: center;
+
+            flex-direction: column;
+
+            z-index: 99999;
+
+            color: #fff;
+
+            background:
+
+                rgba(25, 18, 12, .94);
+
+            backdrop-filter: blur(15px);
+
+        }
+
+
+        .loader.active {
+
+            display: flex;
+
+        }
+
+
+        .loader-ring {
+
+            width: 65px;
+
+            height: 65px;
+
+            border-radius: 50%;
+
+            border:
+
+                3px solid rgba(255, 255, 255, .15);
+
+            border-top-color: #d7ad6d;
+
+            animation:
+
+                spin 1s linear infinite;
+
+            margin-bottom: 20px;
+
+        }
+
+
+        @keyframes spin {
+
+            to {
+
+                transform:
+                    rotate(360deg);
+
+            }
+
+        }
+
+
+        .loader h3 {
+
+            font-family:
+
+                'Cormorant Garamond',
+                serif;
+
+            font-size: 1.8rem;
+
+        }
+
+
+        .loader p {
+
+            color: rgba(255, 255, 255, .55);
+
+            font-size: .8rem;
+
+        }
+
+
+        /* =========================================================
+           MOBILE
+        ========================================================== */
+
+        @media (max-width: 991px) {
+
+
+            .navbar-links {
+
+                display: none;
+
+            }
+
+
+            .hero {
+
+                min-height: 850px;
+
+                background-position:
+
+                    65% center;
+
+            }
+
+
+            .hero-container {
+
+                padding:
+
+                    145px 22px 100px;
+
+            }
+
+
+            .hero-content {
+
+                text-align: center;
+
+                margin: auto;
+
+            }
+
+
+            .hero-description {
+
+                margin: auto;
+
+            }
+
+
+            .hero-buttons {
+
+                justify-content: center;
+
+            }
+
+
+            .ai-card {
+
+                display: none;
+
+            }
+
+
+            .stats {
+
+                margin-top: -30px;
+
+                padding: 0 15px;
+
+            }
+
+
+            .stats-card {
+
+                grid-template-columns:
+                    repeat(2, 1fr);
+
+            }
+
+
+            .stat:nth-child(2) {
+
+                border-right: none;
+
+            }
+
+
+            .stat:nth-child(-n+2) {
+
+                border-bottom:
+                    1px solid var(--border);
+
+            }
+
+
+            .magic-process {
+
+                grid-template-columns:
+                    1fr;
+
+            }
+
+        }
+
+
+        @media (max-width: 576px) {
+
+
+            .brand {
+
+                font-size: 1.5rem;
+
+            }
+
+
+            .brand-icon {
+
+                width: 34px;
+
+                height: 34px;
+
+            }
+
+
+            .hero {
+
+                min-height: 780px;
+
+                background-position:
+                    62% center;
+
+            }
+
+
+            .hero-container {
+
+                padding:
+
+                    125px 18px 80px;
+
+            }
+
+
+            .creator-tag {
+
+                font-size: .68rem;
+
+            }
+
+
+            .hero h1 {
+
+                font-size: 4rem;
+
+                letter-spacing: -1px;
+
+            }
+
+
+            .hero-subtitle {
+
+                font-size: 1.3rem;
+
+            }
+
+
+            .hero-description {
+
+                font-size: .82rem;
+
+                line-height: 1.75;
+
+            }
+
+
+            .hero-buttons {
+
+                flex-direction: column;
+
+                width: 100%;
+
+            }
+
+
+            .btn-primary-luxury,
+            .btn-outline-luxury {
+
+                width: 100%;
+
+                justify-content: center;
+
+            }
+
+
+            .stats-card {
+
+                grid-template-columns:
+                    1fr 1fr;
+
+            }
+
+
+            .stat {
+
+                padding: 18px 10px;
+
+            }
+
+
+            .stat strong {
+
+                font-size: 1.6rem;
+
+            }
+
+
+            .stat span {
+
+                font-size: .65rem;
+
+            }
+
+
+            .section {
+
+                padding: 70px 0;
+
+            }
+
+
+            .studio-card {
+
+                padding: 15px;
+
+            }
+
+
+            .preview {
+
+                height: 260px;
+
+            }
+
+
+            .control-panel {
+
+                padding: 20px;
+
+            }
+
+
+            .section-heading {
+
+                padding: 0 15px;
+
+            }
+
+
+            .section-heading h2 {
+
+                font-size: 2.6rem;
+
+            }
+
+        }
+    </style>
+
+</head>
+
+
+<body>
+
+
+    <!-- =========================================================
+         NAVBAR
+    ========================================================== -->
+
+    <nav class="main-navbar">
+
+        <div class="container">
+
+            <div class="d-flex justify-content-between align-items-center">
+
+                <a href="/" class="brand">
+
+                    <span class="brand-icon">
+
+                        <i class="fas fa-palette"></i>
+
+                    </span>
+
+                    StyleForge
+
+                </a>
+
+
+                <div class="navbar-links">
+
+                    <a href="#studio">
+                        Studio
+                    </a>
+
+                    <a href="#process">
+                        Technology
+                    </a>
+
+                    <a href="#faq">
+                        FAQ
+                    </a>
+
+                    <a href="#studio" class="nav-cta">
+
+                        Start Creating
+
+                    </a>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </nav>
+
+
+
+    <!-- =========================================================
+         HERO
+    ========================================================== -->
+
+    <section class="hero">
+
+
+        <div class="hero-container">
+
+
+            <div class="hero-content">
+
+
+                <div class="creator-tag">
+
+                    <i class="fas fa-sparkles"></i>
+
+                    Made with ♥ by
+                    <strong>mania_raju (IR..)</strong>
+
+                </div>
+
+
+                <h1>
+
+                    Turn Photos
+                    <br>
+
+                    Into <span>Art.</span>
+
+                </h1>
+
+
+                <div class="hero-subtitle">
+
+                    Neural Style Transfer,
+                    Reimagined.
+
+                </div>
+
+
+                <p class="hero-description">
+
+                    StyleForge uses a trained
+                    Adaptive Instance Normalization
+                    model to transform ordinary
+                    photographs into artistic
+                    compositions — instantly.
+
+                </p>
+
+
+                <div class="hero-buttons">
+
+
+                    <a href="#studio" class="btn-primary-luxury">
+
+                        <i class="fas fa-wand-magic-sparkles"></i>
+
+                        Create Your Artwork
+
+                    </a>
+
+
+                    <a href="#process" class="btn-outline-luxury">
+
+                        <i class="fas fa-play"></i>
+
+                        How It Works
+
+                    </a>
+
+
+                </div>
+
+            </div>
+
+
+            <!-- AI STATUS CARD -->
+
+            <div class="ai-card">
+
+
+                <div class="ai-card-top">
+
+
+                    <div class="ai-icon">
+
+                        <i class="fas fa-brain"></i>
+
+                    </div>
+
+
+                    <div>
+
+                        <div class="ai-card-title">
+
+                            AdaIN Engine
+
+                        </div>
+
+                        <div class="ai-card-subtitle">
+
+                            Neural Style Transfer
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+
+                <div class="ai-line">
+
+                    <span></span>
+
+                </div>
+
+
+                <div class="ai-card-status">
+
+                    <span>
+
+                        <span class="status-dot"></span>
+
+                        Model Ready
+
+                    </span>
+
+                    <span>
+                        PyTorch
+                    </span>
+
+                </div>
+
+            </div>
+
+
+        </div>
+
+    </section>
+
+
+
+    <!-- =========================================================
+         STATS
+    ========================================================== -->
+
+    <div class="container stats">
+
+        <div class="stats-card">
+
+
+            <div class="stat">
+
+                <strong>
+                    AdaIN
+                </strong>
+
+                <span>
+                    Style Transfer
+                </span>
+
+            </div>
+
+
+            <div class="stat">
+
+                <strong>
+                    VGG
+                </strong>
+
+                <span>
+                    Feature Encoder
+                </span>
+
+            </div>
+
+
+            <div class="stat">
+
+                <strong>
+                    150
+                </strong>
+
+                <span>
+                    Training Epochs
+                </span>
+
+            </div>
+
+
+            <div class="stat">
+
+                <strong>
+                    AI
+                </strong>
+
+                <span>
+                    Powered Creation
+                </span>
+
+            </div>
+
+
+        </div>
+
+    </div>
+
+
+
+    <!-- =========================================================
+         STUDIO
+    ========================================================== -->
+
+    <section class="section" id="studio">
+
+
+        <div class="container">
+
+
+            <div class="section-heading">
+
+
+                <div class="eyebrow">
+                    Creative Studio
+                </div>
+
+
+                <h2>
+                    Create Something
+                    Extraordinary
+                </h2>
+
+
+                <p>
+
+                    Give the model a photograph
+                    and a style reference.
+                    The neural network handles
+                    the rest.
+
+                </p>
+
+            </div>
+
+
+
+            <div class="studio-card">
+
+
+                <form method="POST" enctype="multipart/form-data" id="uploadForm">
+
+
+                    {{ form.hidden_tag() }}
+
+
+                    <div class="row g-4">
+
+
+                        <!-- CONTENT -->
+
+                        <div class="col-lg-6">
+
+
+                            <div class="upload-card">
+
+
+                                <div class="upload-title">
+
+                                    <i class="fas fa-image me-2"></i>
+
+                                    Your Photograph
+
+                                </div>
+
+
+                                <div class="preview" id="contentPreview">
+
+
+                                    {% if content_image %}
+
+                                    <img src="{{ url_for('send_image', filename=content_image) }}" alt="Content Image">
+
+                                    {% else %}
+
+                                    <div class="preview-placeholder">
+
+                                        <i class="fas fa-camera"></i>
+
+                                        Upload your photograph
+
+                                    </div>
+
+                                    {% endif %}
+
+
+                                </div>
+
+
+                                <div class="upload-control">
+
+                                    {{ form.content(
+                                    class="form-control",
+                                    onchange="previewFile(this, 'contentPreview')"
+                                    ) }}
+
+                                </div>
+
+                            </div>
+
+
+                        </div>
+
+
+
+                        <!-- STYLE -->
+
+                        <div class="col-lg-6">
+
+
+                            <div class="upload-card">
+
+
+                                <div class="upload-title">
+
+                                    <i class="fas fa-paintbrush me-2"></i>
+
+                                    Artistic Style
+
+                                </div>
+
+
+                                <div class="preview" id="stylePreview">
+
+
+                                    {% if style_image %}
+
+                                    <img src="{{ url_for('send_image', filename=style_image) }}" alt="Style Image">
+
+                                    {% else %}
+
+                                    <div class="preview-placeholder">
+
+                                        <i class="fas fa-palette"></i>
+
+                                        Upload a style reference
+
+                                    </div>
+
+                                    {% endif %}
+
+
+                                </div>
+
+
+                                <div class="upload-control">
+
+                                    {{ form.style(
+                                    class="form-control",
+                                    onchange="previewFile(this, 'stylePreview')"
+                                    ) }}
+
+                                </div>
+
+                            </div>
+
+
+                        </div>
+
+                    </div>
+
+
+
+                    <!-- CONTROL PANEL -->
+
+                    <div class="control-panel">
+
+
+                        <div class="control-header">
+
+
+                            <h3>
+
+                                <i class="fas fa-sliders me-2"></i>
+
+                                Style Strength
+
+                            </h3>
+
+
+                            <span class="strength-value" id="rangeValue">
+
+                                1.0
+
+                            </span>
+
+
+                        </div>
+
+
+                        {{ form.alpha(
+                        id="alphaRange",
+                        type="range",
+                        min="0",
+                        max="1",
+                        step="0.1"
+                        ) }}
+
+
+                        <div class="strength-labels">
+
+                            <span>
+                                Preserve Content
+                            </span>
+
+                            <span>
+                                Strong Style
+                            </span>
+
+                        </div>
+
+
+                        {{ form.submit(
+                        class="create-btn",
+                        value="Create My Artwork"
+                        ) }}
+
+
+                    </div>
+
+
+                </form>
+
+
+            </div>
+
+
+            {% if error %}
+
+            <div class="alert alert-danger mt-4">
+
+                <strong>
+                    Something went wrong:
+                </strong>
+
+                {{ error }}
+
+            </div>
+
+            {% endif %}
+
+
+        </div>
+
+    </section>
+
+
+
+    <!-- =========================================================
+         RESULT
+    ========================================================== -->
+
+    {% if result_image %}
+
+    <section class="section pt-0">
+
+
+        <div class="container">
+
+
+            <div class="section-heading">
+
+
+                <div class="eyebrow">
+                    Your Creation
+                </div>
+
+
+                <h2>
+                    The Result
+                </h2>
+
+
+                <p>
+                    Generated by your trained
+                    AdaIN neural style transfer model.
+                </p>
+
+            </div>
+
+
+            <div class="result-card">
+
+
+                <div class="result-title">
+
+                    <i class="fas fa-wand-magic-sparkles me-2"></i>
+
+                    Final Composition
+
+                </div>
+
+
+                <img src="{{ url_for('send_image', filename=result_image) }}" class="result-image"
+                    alt="Stylized Result">
+
+
+                <div class="result-actions">
+
+
+                    <a href="{{ url_for('send_image', filename=result_image) }}" download class="download-button">
+
+                        <i class="fas fa-download"></i>
+
+                        Download Artwork
+
+                    </a>
+
+
+                </div>
+
+            </div>
+
+
+        </div>
+
+    </section>
+
+    {% endif %}
+
+
+
+    <!-- =========================================================
+         TECHNOLOGY
+    ========================================================== -->
+
+    <section class="section" id="process">
+
+
+        <div class="container">
+
+
+            <div class="section-heading">
+
+
+                <div class="eyebrow">
+                    Behind The Magic
+                </div>
+
+
+                <h2>
+                    From Image
+                    To Artwork
+                </h2>
+
+
+                <p>
+
+                    A trained deep-learning pipeline
+                    converts the visual statistics
+                    of your chosen style into
+                    a new artistic representation.
+
+                </p>
+
+            </div>
+
+
+
+            <div class="magic-process">
+
+
+                <!-- STEP 1 -->
+
+                <div class="process-card">
+
+
+                    <div class="process-icon">
+
+                        <i class="fas fa-image"></i>
+
+                    </div>
+
+
+                    <h3>
+                        01. Choose
+                    </h3>
+
+
+                    <p>
+
+                        Select the photograph you
+                        want to transform and an
+                        artistic reference containing
+                        the visual style you want.
+
+                    </p>
+
+                </div>
+
+
+
+                <!-- STEP 2 -->
+
+                <div class="process-card">
+
+
+                    <div class="process-icon">
+
+                        <i class="fas fa-brain"></i>
+
+                    </div>
+
+
+                    <h3>
+                        02. Understand
+                    </h3>
+
+
+                    <p>
+
+                        A VGG-based encoder extracts
+                        deep visual features from both
+                        the content and style images.
+
+                    </p>
+
+                </div>
+
+
+
+                <!-- STEP 3 -->
+
+                <div class="process-card">
+
+
+                    <div class="process-icon">
+
+                        <i class="fas fa-wand-magic-sparkles"></i>
+
+                    </div>
+
+
+                    <h3>
+                        03. Transform
+                    </h3>
+
+
+                    <p>
+
+                        Adaptive Instance Normalization
+                        transfers style statistics and
+                        the trained decoder reconstructs
+                        the final artwork.
+
+                    </p>
+
+                </div>
+
+
+            </div>
+
+
+        </div>
+
+    </section>
+
+
+
+    <!-- =========================================================
+         FAQ
+    ========================================================== -->
+
+    <section class="section" id="faq">
+
+
+        <div class="container">
+
+
+            <div class="section-heading">
+
+
+                <div class="eyebrow">
+                    Questions
+                </div>
+
+
+                <h2>
+                    Frequently Asked
+                    Questions
+                </h2>
+
+            </div>
+
+
+
+            <div class="faq-box" id="faqAccordion">
+
+
+                <div class="accordion">
+
+
+                    <!-- FAQ 1 -->
+
+                    <div class="accordion-item">
+
+
+                        <h2 class="accordion-header">
+
+                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
+                                data-bs-target="#faqOne">
+
+                                What is StyleForge?
+
+                            </button>
+
+                        </h2>
+
+
+                        <div id="faqOne" class="accordion-collapse collapse" data-bs-parent="#faqAccordion">
+
+                            <div class="accordion-body">
+
+                                StyleForge is a Neural Style
+                                Transfer application that uses
+                                Adaptive Instance Normalization
+                                to transfer the visual characteristics
+                                of one image onto another.
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+
+
+                    <!-- FAQ 2 -->
+
+                    <div class="accordion-item">
+
+
+                        <h2 class="accordion-header">
+
+                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
+                                data-bs-target="#faqTwo">
+
+                                What does Style Strength do?
+
+                            </button>
+
+                        </h2>
+
+
+                        <div id="faqTwo" class="accordion-collapse collapse" data-bs-parent="#faqAccordion">
+
+                            <div class="accordion-body">
+
+                                Style Strength controls the balance
+                                between the original content features
+                                and the stylized features generated
+                                through AdaIN.
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+
+
+                    <!-- FAQ 3 -->
+
+                    <div class="accordion-item">
+
+
+                        <h2 class="accordion-header">
+
+                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
+                                data-bs-target="#faqThree">
+
+                                What images can I use?
+
+                            </button>
+
+                        </h2>
+
+
+                        <div id="faqThree" class="accordion-collapse collapse" data-bs-parent="#faqAccordion">
+
+                            <div class="accordion-body">
+
+                                You can experiment with paintings,
+                                sketches, drawings, watercolors,
+                                abstract artwork and photographs
+                                containing distinctive textures.
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+
+
+                    <!-- FAQ 4 -->
+
+                    <div class="accordion-item">
+
+
+                        <h2 class="accordion-header">
+
+                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
+                                data-bs-target="#faqFour">
+
+                                Which technologies power the application?
+
+                            </button>
+
+                        </h2>
+
+
+                        <div id="faqFour" class="accordion-collapse collapse" data-bs-parent="#faqAccordion">
+
+                            <div class="accordion-body">
+
+                                Python, PyTorch, VGG feature extraction,
+                                Adaptive Instance Normalization,
+                                a trained decoder, Flask, HTML,
+                                CSS and JavaScript.
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+
+
+                    <!-- FAQ 5 -->
+
+                    <div class="accordion-item">
+
+
+                        <h2 class="accordion-header">
+
+                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
+                                data-bs-target="#faqFive">
+
+                                Does the application train the model
+                                when I create artwork?
+
+                            </button>
+
+                        </h2>
+
+
+                        <div id="faqFive" class="accordion-collapse collapse" data-bs-parent="#faqAccordion">
+
+                            <div class="accordion-body">
+
+                                No. The trained model is used only
+                                for inference when you create an
+                                artwork.
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+
+                </div>
+
+
+            </div>
+
+        </div>
+
+    </section>
+
+
+
+    <!-- =========================================================
+         FOOTER
+    ========================================================== -->
+
+    <footer>
+
+
+        <div class="container">
+
+
+            <div class="row g-4">
+
+
+                <div class="col-md-7">
+
+
+                    <div class="footer-brand">
+
+                        <i class="fas fa-palette me-2"></i>
+
+                        StyleForge
+
+                    </div>
+
+
+                    <p class="mt-3">
+
+                        A creative AI studio exploring the
+                        intersection of computer vision,
+                        deep learning and visual art.
+
+                    </p>
+
+
+                </div>
+
+
+                <div class="col-md-5">
+
+
+                    <p>
+
+                        <strong style="color:#e0c18b;">
+                            TECHNOLOGY
+                        </strong>
+
+                    </p>
+
+
+                    <p>
+
+                        PyTorch · AdaIN · VGG
+                        <br>
+
+                        Flask · Computer Vision
+
+                    </p>
+
+                </div>
+
+
+            </div>
+
+
+            <div class="footer-credit">
+
+                Crafted with
+
+                <span style="color:#e2b36e;">
+                    ♥
+                </span>
+
+                by
+
+                <strong>
+                    mania_raju (IR..)
+                </strong>
+
+                <br><br>
+
+                © 2026 StyleForge AI
+                · Neural Style Transfer Studio
+
+            </div>
+
+
+        </div>
+
+    </footer>
+
+
+
+    <!-- =========================================================
+         LOADER
+    ========================================================== -->
+
+    <div class="loader" id="loader">
+
+
+        <div class="loader-ring"></div>
+
+
+        <h3>
+            Creating your artwork...
+        </h3>
+
+
+        <p>
+            AdaIN is transferring the artistic style.
+        </p>
+
+
+    </div>
+
+
+
+    <!-- =========================================================
+         BOOTSTRAP JS
+    ========================================================== -->
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js">
+    </script>
+
+
+
+    <script>
+
+
+        /* =========================================================
+           IMAGE PREVIEW
+        ========================================================== */
+
+        function previewFile(
+            input,
+            previewId
+        ) {
+
+            const preview =
+                document.getElementById(previewId);
+
+            const file =
+                input.files[0];
+
+
+            if (!file) {
+
+                return;
+
+            }
+
+
+            const reader =
+                new FileReader();
+
+
+            reader.onload = function () {
+
+                preview.innerHTML =
+
+                    `<img
+                        src="${reader.result}"
+                        alt="Image Preview"
+                    >`;
+
+            };
+
+
+            reader.readAsDataURL(file);
+
+        }
+
+
+
+        /* =========================================================
+           STYLE STRENGTH
+        ========================================================== */
+
+        const range =
+            document.getElementById(
+                "alphaRange"
+            );
+
+
+        const rangeValue =
+            document.getElementById(
+                "rangeValue"
+            );
+
+
+        function updateRange() {
+
+
+            if (
+                !range ||
+                !rangeValue
+            ) {
+
+                return;
+
+            }
+
+
+            rangeValue.textContent =
+                parseFloat(
+                    range.value
+                ).toFixed(1);
+
+        }
+
+
+        if (range) {
+
+            range.addEventListener(
+                "input",
+                updateRange
+            );
+
+
+            updateRange();
+
+        }
+
+
+
+        /* =========================================================
+           LOADING SCREEN
+        ========================================================== */
+
+        const form =
+            document.getElementById(
+                "uploadForm"
+            );
+
+
+        const loader =
+            document.getElementById(
+                "loader"
+            );
+
+
+        if (form) {
+
+
+            form.addEventListener(
+                "submit",
+                function () {
+
+
+                    if (loader) {
+
+                        loader.classList.add(
+                            "active"
+                        );
+
+                    }
+
+                }
+            );
+
+        }
+
+
+
+        /* =========================================================
+           RESULT AUTO SCROLL
+        ========================================================== */
+
+        window.addEventListener(
+            "load",
+            function () {
+
+
+                const result =
+                    document.querySelector(
+                        ".result-card"
+                    );
+
+
+                if (result) {
+
+
+                    setTimeout(
+                        function () {
+
+
+                            result.scrollIntoView({
+
+                                behavior:
+                                    "smooth",
+
+                                block:
+                                    "start"
+
+                            });
+
+
+                        },
+                        500
+                    );
+
+                }
+
+            }
+        );
+
+
+    </script>
+
+
+</body>
+
+</html>
