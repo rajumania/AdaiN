@@ -34,7 +34,7 @@ os.makedirs(MODEL_DIR, exist_ok=True)
 print("Downloading/loading VGG model...")
 
 VGG_PATH = hf_hub_download(
-    repo_id="rajumania/adain-models",
+    repo_id="rjaumania/adain-models",
     filename="vgg_normalised.pth",
     local_dir=MODEL_DIR
 )
@@ -42,7 +42,7 @@ VGG_PATH = hf_hub_download(
 print("Downloading/loading decoder...")
 
 DECODER_PATH = hf_hub_download(
-    repo_id="rajumania/adain-models",
+    repo_id="rjaumania/adain-models",
     filename="decoder_150.pth",
     local_dir=MODEL_DIR
 )
