@@ -1,31 +1,25 @@
+
 import os
 import gc
+import threading
 
 import torch
-from flask import Flask, render_template, send_from_directory
+from flask import Flask, render_template, send_from_directory, request
 from flask_wtf import FlaskForm
 from flask_bootstrap import Bootstrap
 from werkzeug.utils import secure_filename
 from wtforms import FileField, SubmitField, FloatField, HiddenField
-from PIL import Image
+from PIL import Image, UnidentifiedImageError
 from torchvision import transforms
 from huggingface_hub import hf_hub_download
-
-
-# =========================================================
-# IMPORT ADAIN MODEL
-# =========================================================
 
 from utils.model import VGGEncoder, Decoder
 from utils.utils import adaptive_instance_normalization
 
 
 # =========================================================
-# PYTORCH CPU MEMORY OPTIMIZATION
+# PYTORCH CPU OPTIMIZATION
 # =========================================================
-
-# Render has limited RAM.
-# Using fewer CPU threads reduces memory usage.
 
 torch.set_num_threads(1)
 torch.set_num_interop_threads(1)
@@ -37,73 +31,49 @@ torch.set_num_interop_threads(1)
 
 app = Flask(__name__)
 
-app.config['SECRET_KEY'] = 'supersecretkey'
+app.config["SECRET_KEY"] = os.environ.get(
+    "SECRET_KEY", "supersecretkey"
+)
+app.config["UPLOAD_FOLDER"] = "static/uploads"
+app.config["MAX_CONTENT_LENGTH"] = 10 * 1024 * 1024
 
-app.config['UPLOAD_FOLDER'] = 'static/uploads'
-
-app.config['ALLOWED_EXTENSIONS'] = {
-    'png',
-    'jpg',
-    'jpeg'
-}
+app.config["ALLOWED_EXTENSIONS"] = {"png", "jpg", "jpeg"}
 
 Bootstrap(app)
 
+os.makedirs(app.config["UPLOAD_FOLDER"], exist_ok=True)
 
-# Make sure upload directory exists
-os.makedirs(
-    app.config['UPLOAD_FOLDER'],
-    exist_ok=True
-)
+
+@app.errorhandler(413)
+def file_too_large(error):
+    return "Upload too large. Please use images under 10 MB combined.", 413
 
 
 # =========================================================
-# HUGGING FACE MODEL
+# MODEL DOWNLOADS
 # =========================================================
 
 MODEL_DIR = "models"
+os.makedirs(MODEL_DIR, exist_ok=True)
 
-os.makedirs(
-    MODEL_DIR,
-    exist_ok=True
-)
-
-
-# ---------------------------------------------------------
-# Download VGG model
-# ---------------------------------------------------------
-
-print("Downloading/loading VGG model...")
+print("Downloading/loading VGG model...", flush=True)
 
 VGG_PATH = hf_hub_download(
     repo_id="rjaumania/adain-models",
     filename="vgg_normalised.pth",
-    local_dir=MODEL_DIR
+    local_dir=MODEL_DIR,
 )
 
-
-# ---------------------------------------------------------
-# Download decoder
-# ---------------------------------------------------------
-
-print("Downloading/loading decoder...")
+print("Downloading/loading decoder...", flush=True)
 
 DECODER_PATH = hf_hub_download(
     repo_id="rjaumania/adain-models",
     filename="decoder_150.pth",
-    local_dir=MODEL_DIR
+    local_dir=MODEL_DIR,
 )
 
-
-print(
-    "VGG model path:",
-    VGG_PATH
-)
-
-print(
-    "Decoder path:",
-    DECODER_PATH
-)
+print("VGG model path:", VGG_PATH, flush=True)
+print("Decoder path:", DECODER_PATH, flush=True)
 
 
 # =========================================================
@@ -111,77 +81,51 @@ print(
 # =========================================================
 
 device = torch.device(
-    "cuda"
-    if torch.cuda.is_available()
-    else "cpu"
+    "cuda" if torch.cuda.is_available() else "cpu"
 )
 
-print(
-    "Using device:",
-    device
-)
+print("Using device:", device, flush=True)
 
 
 # =========================================================
-# FORM
+# UPLOAD FORM
 # =========================================================
 
 class UploadForm(FlaskForm):
-
-    content = FileField(
-        'Content image'
-    )
-
-    style = FileField(
-        'Style image'
-    )
+    content = FileField("Content image")
+    style = FileField("Style image")
 
     content_path = HiddenField()
-
     style_path = HiddenField()
 
-    alpha = FloatField(
-        'Alpha',
-        default=1.0
-    )
-
-    submit = SubmitField(
-        'Transfer Style'
-    )
+    alpha = FloatField("Alpha", default=1.0)
+    submit = SubmitField("Transfer Style")
 
 
 # =========================================================
-# LOAD ADAIN MODELS
+# LOAD MODELS ONCE
 # =========================================================
 
-print("Loading VGG encoder...")
+print("Loading VGG encoder...", flush=True)
 
-encoder = VGGEncoder(
-    VGG_PATH
-).to(device)
+encoder = VGGEncoder(VGG_PATH).to(device)
+encoder.eval()
 
-
-print("Loading decoder...")
+print("Loading decoder...", flush=True)
 
 decoder = Decoder().to(device)
 
-
 decoder.load_state_dict(
-    torch.load(
-        DECODER_PATH,
-        map_location=device
-    )
+    torch.load(DECODER_PATH, map_location=device)
 )
 
-
-# Evaluation mode
-encoder.eval()
 decoder.eval()
 
+print("AdaIN models loaded successfully!", flush=True)
 
-print(
-    "AdaIN models loaded successfully!"
-)
+
+# Prevent concurrent inference from multiplying peak memory use.
+inference_lock = threading.Lock()
 
 
 # =========================================================
@@ -189,63 +133,36 @@ print(
 # =========================================================
 
 def allowed_file(filename):
-
     return (
-        '.'
-        in filename
-        and
-        filename.rsplit(
-            '.',
-            1
-        )[1].lower()
-        in app.config[
-            'ALLOWED_EXTENSIONS'
-        ]
+        "." in filename
+        and filename.rsplit(".", 1)[1].lower()
+        in app.config["ALLOWED_EXTENSIONS"]
     )
 
 
 # =========================================================
-# RESIZE IMAGE WHILE KEEPING ASPECT RATIO
+# RESIZE WHILE PRESERVING ASPECT RATIO
 # =========================================================
 
-def resize_keep_aspect(
-    image,
-    max_size=512
-):
-
+def resize_keep_aspect(image, max_size=256):
     width, height = image.size
 
+    if width <= 0 or height <= 0:
+        raise ValueError("Invalid image dimensions.")
 
-    # Find scaling factor
     scale = min(
         max_size / width,
-        max_size / height
+        max_size / height,
+        1.0,
     )
 
+    new_width = max(1, int(width * scale))
+    new_height = max(1, int(height * scale))
 
-    # Calculate new dimensions
-    new_width = max(
-        1,
-        int(width * scale)
+    return image.resize(
+        (new_width, new_height),
+        Image.Resampling.LANCZOS,
     )
-
-    new_height = max(
-        1,
-        int(height * scale)
-    )
-
-
-    # Resize image
-    image = image.resize(
-        (
-            new_width,
-            new_height
-        ),
-        Image.Resampling.LANCZOS
-    )
-
-
-    return image
 
 
 # =========================================================
@@ -258,520 +175,227 @@ def style_transfer(
     encoder,
     decoder,
     alpha,
-    device
+    device,
 ):
-
-    # -----------------------------------------------------
-    # RESIZE CONTENT IMAGE
-    # -----------------------------------------------------
-
     content_image = resize_keep_aspect(
-        content_image,
-        max_size=512
+        content_image, max_size=256
     )
-
-
-    # -----------------------------------------------------
-    # RESIZE STYLE IMAGE
-    # -----------------------------------------------------
-
     style_image = resize_keep_aspect(
-        style_image,
-        max_size=512
+        style_image, max_size=256
     )
 
+    print("Content size:", content_image.size, flush=True)
+    print("Style size:", style_image.size, flush=True)
 
-    print(
-        "Content size:",
-        content_image.size
-    )
+    to_tensor = transforms.ToTensor()
 
-    print(
-        "Style size:",
-        style_image.size
-    )
+    content_tensor = to_tensor(content_image).unsqueeze(0).to(device)
+    style_tensor = to_tensor(style_image).unsqueeze(0).to(device)
 
+    content_feats = None
+    style_feats = None
+    stylized_feats = None
+    output = None
 
-    # -----------------------------------------------------
-    # CONVERT CONTENT IMAGE TO TENSOR
-    # -----------------------------------------------------
+    try:
+        with torch.inference_mode():
+            print("Extracting content features...", flush=True)
+            content_feats = encoder(content_tensor, is_test=True)
 
-    content_tensor = transforms.ToTensor()(
-        content_image
-    )
+            print("Extracting style features...", flush=True)
+            style_feats = encoder(style_tensor, is_test=True)
 
-
-    content_tensor = (
-        content_tensor
-        .unsqueeze(0)
-        .to(device)
-    )
-
-
-    # -----------------------------------------------------
-    # CONVERT STYLE IMAGE TO TENSOR
-    # -----------------------------------------------------
-
-    style_tensor = transforms.ToTensor()(
-        style_image
-    )
-
-
-    style_tensor = (
-        style_tensor
-        .unsqueeze(0)
-        .to(device)
-    )
-
-
-    # =====================================================
-    # ADAIN INFERENCE
-    # =====================================================
-
-    # inference_mode uses less memory than normal
-    # autograd / no_grad mode.
-
-    with torch.inference_mode():
-
-        # -------------------------------------------------
-        # CONTENT FEATURES
-        # -------------------------------------------------
-
-        print(
-            "Extracting content features..."
-        )
-
-        content_feats = encoder(
-            content_tensor,
-            is_test=True
-        )
-
-
-        # -------------------------------------------------
-        # STYLE FEATURES
-        # -------------------------------------------------
-
-        print(
-            "Extracting style features..."
-        )
-
-        style_feats = encoder(
-            style_tensor,
-            is_test=True
-        )
-
-
-        # -------------------------------------------------
-        # ADAPTIVE INSTANCE NORMALIZATION
-        # -------------------------------------------------
-
-        print(
-            "Applying AdaIN..."
-        )
-
-        stylized_feats = (
-            adaptive_instance_normalization(
+            print("Applying AdaIN...", flush=True)
+            stylized_feats = adaptive_instance_normalization(
                 content_feats,
-                style_feats
+                style_feats,
             )
-        )
 
+            # Blend in-place to avoid allocating another feature tensor.
+            stylized_feats.mul_(alpha)
+            stylized_feats.add_(
+                content_feats,
+                alpha=(1.0 - alpha),
+            )
 
-        # -------------------------------------------------
-        # ALPHA BLENDING
-        # -------------------------------------------------
+            # Release encoder features before decoding.
+            del content_feats
+            content_feats = None
 
-        stylized_feats = (
-            alpha * stylized_feats
-            +
-            (1 - alpha) * content_feats
-        )
+            del style_feats
+            style_feats = None
 
+            del content_tensor, style_tensor
+            content_tensor = None
+            style_tensor = None
 
-        # -------------------------------------------------
-        # DECODER
-        # -------------------------------------------------
+            gc.collect()
 
-        print(
-            "Generating stylized image..."
-        )
+            print("Generating stylized image...", flush=True)
+            output = decoder(stylized_feats)
 
-        stylized_image = decoder(
-            stylized_feats
-        )
+            # Move result to CPU before releasing feature maps.
+            output = output.cpu()
 
+            del stylized_feats
+            stylized_feats = None
 
-    # =====================================================
-    # FREE MEMORY
-    # =====================================================
+            gc.collect()
 
-    del content_tensor
+        print("Style transfer completed!", flush=True)
+        return output
 
-    del style_tensor
+    finally:
+        # Release remaining tensors even if inference raises an error.
+        for name in (
+            "content_tensor",
+            "style_tensor",
+            "content_feats",
+            "style_feats",
+            "stylized_feats",
+        ):
+            value = locals().get(name)
+            if value is not None:
+                del value
 
-    del content_feats
-
-    del style_feats
-
-    del stylized_feats
-
-    gc.collect()
-
-
-    print(
-        "Style transfer completed!"
-    )
-
-
-    return stylized_image
+        gc.collect()
 
 
 # =========================================================
-# SAVE IMAGE
+# SAVE OUTPUT IMAGE
 # =========================================================
 
-def save_image(
-    tensor,
-    path
-):
+def save_image(tensor, path):
+    image_tensor = tensor.detach().cpu().squeeze(0).clamp(0, 1)
 
-    image = tensor.cpu().clone()
-
-
-    # Remove batch dimension
-    image = image.squeeze(0)
-
-
-    # Keep pixel values between 0 and 1
-    image = image.clamp(
-        0,
-        1
-    )
-
-
-    # Convert Tensor → PIL
-    image = transforms.ToPILImage()(
-        image
-    )
-
-
-    # Save
-    image.save(
-        path
-    )
+    image = transforms.ToPILImage()(image_tensor)
+    image.save(path, format="PNG")
 
 
 # =========================================================
 # HOME PAGE
 # =========================================================
 
-@app.route(
-    '/',
-    methods=[
-        'GET',
-        'POST'
-    ]
-)
+@app.route("/", methods=["GET", "POST"])
 def index():
+    print("REQUEST METHOD:", request.method, flush=True)
 
     form = UploadForm()
 
     result_image = None
-
     content_filename = None
-
     style_filename = None
-
     error = None
 
-
-    # =====================================================
-    # FORM SUBMITTED
-    # =====================================================
+    if request.method == "POST":
+        print("POST REQUEST RECEIVED", flush=True)
 
     if form.validate_on_submit():
+        print("FORM VALIDATION SUCCESS", flush=True)
 
-        # -------------------------------------------------
-        # CONTENT IMAGE
-        # -------------------------------------------------
+        content_upload = form.content.data
+        style_upload = form.style.data
 
-        if (
-            form.content.data
-            and
-            form.content.data.filename
-        ):
-
-            if allowed_file(
-                form.content.data.filename
-            ):
-
-                content_filename = (
-                    secure_filename(
-                        form.content.data.filename
-                    )
-                )
-
-
-                form.content.data.save(
-                    os.path.join(
-                        app.config[
-                            'UPLOAD_FOLDER'
-                        ],
-                        content_filename
-                    )
-                )
-
-
-                form.content_path.data = (
-                    content_filename
-                )
-
+        # Require new uploads for each transfer.
+        if not content_upload or not content_upload.filename:
+            error = "Please upload a content image."
+        elif not style_upload or not style_upload.filename:
+            error = "Please upload a style image."
+        elif not allowed_file(content_upload.filename):
+            error = "Content image must be PNG, JPG, or JPEG."
+        elif not allowed_file(style_upload.filename):
+            error = "Style image must be PNG, JPG, or JPEG."
         else:
+            content_filename = secure_filename(content_upload.filename)
+            style_filename = secure_filename(style_upload.filename)
 
-            content_filename = (
-                form.content_path.data
-            )
+            # Avoid empty or unsafe filenames.
+            if not content_filename or not style_filename:
+                error = "Invalid filename. Please rename your images."
+            else:
+                content_path = os.path.join(
+                    app.config["UPLOAD_FOLDER"],
+                    content_filename,
+                )
+                style_path = os.path.join(
+                    app.config["UPLOAD_FOLDER"],
+                    style_filename,
+                )
 
+                try:
+                    print("Opening uploaded images...", flush=True)
 
-        # -------------------------------------------------
-        # STYLE IMAGE
-        # -------------------------------------------------
+                    with Image.open(content_path) if False else open(os.devnull, "rb") as _unused:
+                        pass
 
-        if (
-            form.style.data
-            and
-            form.style.data.filename
-        ):
+                    content_upload.save(content_path)
+                    style_upload.save(style_path)
 
-            if allowed_file(
-                form.style.data.filename
-            ):
+                    with Image.open(content_path) as image:
+                        content_image = image.convert("RGB")
 
-                style_filename = (
-                    secure_filename(
-                        form.style.data.filename
+                    with Image.open(style_path) as image:
+                        style_image = image.convert("RGB")
+
+                    alpha = float(form.alpha.data or 1.0)
+                    alpha = max(0.0, min(1.0, alpha))
+
+                    print("Starting style transfer", flush=True)
+                    print("Alpha:", alpha, flush=True)
+                    print("Maximum image dimension: 256", flush=True)
+
+                    # Only one inference at a time.
+                    with inference_lock:
+                        stylized_image = style_transfer(
+                            content_image,
+                            style_image,
+                            encoder,
+                            decoder,
+                            alpha,
+                            device,
+                        )
+
+                    result_filename = (
+                        "stylized_" + os.path.splitext(content_filename)[0]
+                        + ".png"
                     )
-                )
 
-
-                form.style.data.save(
-                    os.path.join(
-                        app.config[
-                            'UPLOAD_FOLDER'
-                        ],
-                        style_filename
+                    result_path = os.path.join(
+                        app.config["UPLOAD_FOLDER"],
+                        result_filename,
                     )
-                )
 
+                    save_image(stylized_image, result_path)
 
-                form.style_path.data = (
-                    style_filename
-                )
+                    result_image = result_filename
 
-        else:
+                    print("Result saved:", result_path, flush=True)
 
-            style_filename = (
-                form.style_path.data
-            )
+                    del stylized_image
+                    del content_image
+                    del style_image
+                    gc.collect()
 
+                except (UnidentifiedImageError, OSError, ValueError) as exc:
+                    print("Image processing error:", repr(exc), flush=True)
+                    error = "Could not process an image. Please try valid JPG or PNG files."
 
-        # =================================================
-        # CHECK BOTH IMAGES
-        # =================================================
+                except Exception as exc:
+                    print("Style transfer error:", repr(exc), flush=True)
+                    error = "Style transfer failed. Please check the server logs."
 
-        if (
-            content_filename
-            and
-            style_filename
-        ):
-
-            content_path = os.path.join(
-                app.config[
-                    'UPLOAD_FOLDER'
-                ],
-                content_filename
-            )
-
-
-            style_path = os.path.join(
-                app.config[
-                    'UPLOAD_FOLDER'
-                ],
-                style_filename
-            )
-
-
-            try:
-
-                # -----------------------------------------
-                # LOAD CONTENT
-                # -----------------------------------------
-
-                content_image = Image.open(
-                    content_path
-                ).convert('RGB')
-
-
-                # -----------------------------------------
-                # LOAD STYLE
-                # -----------------------------------------
-
-                style_image = Image.open(
-                    style_path
-                ).convert('RGB')
-
-
-                # -----------------------------------------
-                # ALPHA
-                # -----------------------------------------
-
-                alpha = float(
-                    form.alpha.data
-                )
-
-
-                # Keep alpha between 0 and 1
-                alpha = max(
-                    0.0,
-                    min(
-                        1.0,
-                        alpha
-                    )
-                )
-
-
-                print(
-                    "================================"
-                )
-
-                print(
-                    "Starting style transfer"
-                )
-
-                print(
-                    "Alpha:",
-                    alpha
-                )
-
-                print(
-                    "Maximum image size: 512"
-                )
-
-                print(
-                    "================================"
-                )
-
-
-                # -----------------------------------------
-                # STYLE TRANSFER
-                # -----------------------------------------
-
-                stylized_image = style_transfer(
-                    content_image,
-                    style_image,
-                    encoder,
-                    decoder,
-                    alpha,
-                    device
-                )
-
-
-                # -----------------------------------------
-                # RESULT FILE NAME
-                # -----------------------------------------
-
-                result_filename = (
-                    'stylized_'
-                    +
-                    content_filename
-                )
-
-
-                result_path = os.path.join(
-                    app.config[
-                        'UPLOAD_FOLDER'
-                    ],
-                    result_filename
-                )
-
-
-                # -----------------------------------------
-                # SAVE RESULT
-                # -----------------------------------------
-
-                save_image(
-                    stylized_image,
-                    result_path
-                )
-
-
-                result_image = (
-                    result_filename
-                )
-
-
-                print(
-                    "Result saved:",
-                    result_path
-                )
-
-
-                # -----------------------------------------
-                # CLEANUP
-                # -----------------------------------------
-
-                del stylized_image
-
-                del content_image
-
-                del style_image
-
-                gc.collect()
-
-
-            except Exception as e:
-
-                print(
-                    "Style transfer error:",
-                    e
-                )
-
-
-                error = str(e)
-
-
-        else:
-
-            if not content_filename:
-
-                error = (
-                    'Please upload content image'
-                )
-
-
-            if not style_filename:
-
-                error = (
-                    'Please upload style image'
-                )
-
-
-    # =====================================================
-    # RETURN HTML
-    # =====================================================
+    elif request.method == "POST":
+        print("FORM VALIDATION FAILED:", form.errors, flush=True)
+        if not error:
+            error = "Form validation failed. Please upload both images and try again."
 
     return render_template(
-        'index.html',
-
+        "index.html",
         form=form,
-
         result_image=result_image,
-
         content_image=content_filename,
-
         style_image=style_filename,
-
-        error=error
+        error=error,
     )
 
 
@@ -779,16 +403,11 @@ def index():
 # SERVE UPLOADED IMAGES
 # =========================================================
 
-@app.route(
-    '/uploads/<filename>'
-)
+@app.route("/uploads/<path:filename>")
 def send_image(filename):
-
     return send_from_directory(
-        app.config[
-            'UPLOAD_FOLDER'
-        ],
-        filename
+        app.config["UPLOAD_FOLDER"],
+        filename,
     )
 
 
@@ -796,33 +415,21 @@ def send_image(filename):
 # EXAMPLES
 # =========================================================
 
-@app.route(
-    '/examples/<path:filename>'
-)
+@app.route("/examples/<path:filename>")
 def send_example(filename):
-
-    return send_from_directory(
-        'examples',
-        filename
-    )
+    return send_from_directory("examples", filename)
 
 
 # =========================================================
 # RUN APPLICATION
 # =========================================================
 
-if __name__ == '__main__':
-
-    port = int(
-        os.environ.get(
-            'PORT',
-            5000
-        )
-    )
-
+if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 5000))
 
     app.run(
-        host='0.0.0.0',
+        host="0.0.0.0",
         port=port,
-        debug=False
+        debug=False,
+        threaded=False,
     )
