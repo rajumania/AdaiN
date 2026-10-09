@@ -178,10 +178,10 @@ def style_transfer(
     device,
 ):
     content_image = resize_keep_aspect(
-        content_image, max_size=256
+        content_image, max_size=128
     )
     style_image = resize_keep_aspect(
-        style_image, max_size=256
+        style_image, max_size=128
     )
 
     print("Content size:", content_image.size, flush=True)
